@@ -6,14 +6,22 @@ import java.util.List;
 
 
 public class main {
-    static final int maxSize = 15000;//内存每次最多放1500000条记录
-    static final char[] maxKey = {255, 255, 255, 255, 255, 255, 255, 255, ','};
+    static final int maxSize = 8000000;//内存每次最多放8000000条记录
+    static final char[] maxKey = {255, 255, 255, 255, 255, 255, 255, 255};
+    static final int MAX=10000000;
+	static int cnt = 0;
 
 
     public static void test(File inputFile, File outputFile, File tempFile) throws Exception {
 
+    	int page = 0;
+    	File[] inputFiles = inputFile.listFiles();
+    	List<File> input = new ArrayList<>();
+    	for(File f:inputFiles) {
+    		input.add(f);
+    	}
         @SuppressWarnings("resource")
-		BufferedReader bufr = new BufferedReader(new FileReader(inputFile));
+		BufferedReader bufr = new BufferedReader(new FileReader(input.get(page++)));
 
         String[] heapArray = new String[maxSize];
         String line = null;//用来存放每次从缓冲区读入的一条记录
@@ -21,8 +29,12 @@ public class main {
         List<File> tempFiles = new ArrayList<>();
         int heapSize = 0;
 //replaceSelection begin
-        while ((line = bufr.readLine()) != null) {
-            heapArray[i++] = line;
+        while ((line = bufr.readLine()) != null || page < input.size()) {
+        	if((line = bufr.readLine()) == null) {
+        		bufr = new BufferedReader(new FileReader(input.get(page++)));
+        		line = bufr.readLine();
+        	}	
+        	heapArray[i++] = line;
             if (i == maxSize)
                 break;
         }
@@ -32,13 +44,11 @@ public class main {
             tempFiles.add(newTempFile);
             BufferedWriter bufw = new BufferedWriter(new FileWriter(newTempFile));
             buildHeap(heapArray, heapSize, 0);
-            while (heapSize != 0) {
+            while (heapSize != 0 && (line = bufr.readLine()) != null) {
                 bufw.write(heapArray[0]);
                 bufw.newLine();
-                line = bufr.readLine();
-                if (line == null)
-                    break;
-                if (keyOf(line).compareTo(keyOf(heapArray[0])) > 0) {
+//                line = bufr.readLine();
+                if (compareStr(line, heapArray[0]) > 0) {
                     heapArray[0] = line;
                 } else {
                     heapArray[0] = heapArray[heapSize - 1];
@@ -82,15 +92,12 @@ public class main {
         heapArray = null;
         System.gc();
         //begin MultiWayMergeSort
-        if(!tempFiles.isEmpty())
-        	multiWayMergeSort(tempFiles, outputFile);
+        multiWayMergeSort(tempFiles, File.createTempFile("myOutputFile", ".txt",new File(outputFile.getAbsolutePath())));
 
 //delete tempFiles
-        for (File file : tempFiles
-                ) {
+        for (File file : tempFiles) {
             file.delete();
         }
-        //=================================================================
     }
 
 
@@ -104,9 +111,9 @@ public class main {
         int j = 2 * i + 1;
         String temp = heapArray[i];
         while (j < size) {
-            if (j < size - 1 && (keyOf(heapArray[j]).compareTo(keyOf(heapArray[j + 1]))) > 0)
+            if (j < size - 1 && (compareStr(heapArray[j], heapArray[j + 1])> 0))
                 ++j;
-            if (keyOf(temp).compareTo(heapArray[j]) > 0) {
+            if (compareStr(temp, heapArray[j])> 0) {
                 heapArray[i] = heapArray[j];
                 i = j;
                 j = 2 * j + 1;
@@ -116,7 +123,7 @@ public class main {
     }
 
     private static void multiWayMergeSort(List<File> files, File outputFile) throws IOException {
-        int ways = files.size();
+    	int ways = files.size();
         int length_per_run = maxSize / ways;
         Run[] runs = new Run[ways];
         for (int i = 0; i < ways; i++) {
@@ -142,7 +149,14 @@ public class main {
         BufferedWriter bufw = new BufferedWriter(new FileWriter(outputFile));
         int liveRuns = ways;
         while (liveRuns > 0) {
+        	if(cnt > MAX) {
+        		File newOutput = File.createTempFile("myOutputFile", ".txt", new File(outputFile.getAbsolutePath()));
+        		bufw.flush();
+                bufw=new BufferedWriter(new FileWriter(newOutput));
+        		cnt = 0;
+        	}
             bufw.write(runs[ls[0]].buffer[runs[ls[0]].index++]);
+            cnt++;
             bufw.newLine();
             if (runs[ls[0]].index == runs[ls[0]].length) {
                 //reload
@@ -159,15 +173,13 @@ public class main {
             if (runs[ls[0]].length == 0) {
                 liveRuns--;
                 String maxString = new String(maxKey);
-                maxString += "\n";
                 runs[ls[0]].buffer[runs[ls[0]].index] = maxString;
             }
             adjust(ls, runs, ways, ls[0]);
         }
         bufw.flush();
         bufw.close();
-        for (BufferedReader bufr : rList
-                ) {
+        for (BufferedReader bufr : rList) {
             bufr.close();
         }
 
@@ -190,7 +202,7 @@ public class main {
         while (t != 0) {
             if (s == -1)
                 break;
-            if (ls[t] == -1 || (keyOf(runs[s].buffer[runs[s].index]).compareTo(keyOf(runs[ls[t]].buffer[runs[ls[t]].index]))) > 0) {
+            if (ls[t] == -1 || compareStr(runs[s].buffer[runs[s].index], runs[ls[t]].buffer[runs[ls[t]].index]) > 0) {
                 temp = s;
                 s = ls[t];
                 ls[t] = temp;
@@ -199,13 +211,14 @@ public class main {
         }
         ls[0] = s;
     }
-
-
-    static String keyOf(String str) {
-
-        return str.substring(0, str.indexOf(","));
+    
+    private static int compareStr(String s1, String s2) {
+    	if(s1 == null || s2 == null)
+    		return 0;
+    	if(s1.length() != s2.length())
+    		return s1.length()>s2.length() ? 1 : -1;
+    	return s1.compareTo(s2);
     }
-
 
     static class Run {
         String[] buffer;
@@ -217,5 +230,4 @@ public class main {
             buffer = new String[length];
         }
     }
-    //=================================================================
 }

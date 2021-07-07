@@ -4,33 +4,35 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 public class generateData {
     public static void main(String[] args) throws IOException {
-        final int MAX=800000;
-        File f=new File("E:\\website\\myInputFile.txt");
-        if (f.exists())
-            f.delete();
-        BufferedWriter bufw=new BufferedWriter(new FileWriter(f));
-        for (int i=0;i<MAX;++i){
-            bufw.write(getRandomString());
-            bufw.newLine();
+        final int MAX=10000000;
+        List<File> PFile = new ArrayList<>();
+        for(int i = 0; i < 10; i++) {
+        	File f = File.createTempFile("myInputFile", ".txt", new File("C:\\newFile"));
+        	if (f.exists())
+                f.delete();
+            BufferedWriter bufw=new BufferedWriter(new FileWriter(f));
+            for (int j=0;j<MAX;++j){
+                bufw.write(getRandomNumber());
+                bufw.newLine();
+            }
+            PFile.add(f);
+            bufw.flush();
+            bufw.close();
         }
-        bufw.flush();
-        bufw.close();
+        
     }
-    public static String getRandomString(){
+    
+    public static String getRandomNumber(){
         StringBuilder sb=new StringBuilder();
         Random random=new Random();
-        for (int i = 0; i < 8; i++) {
-            sb.append((char)(random.nextInt(26)+97));
-
-        }
-        sb.append(',');
-        for (int i = 0; i <16 ; i++) {
-            sb.append((char)(random.nextInt(26)+97));
-        }
+        int randint =(int)Math.floor((random.nextDouble()*Integer.MAX_VALUE));
+        sb.append(randint);
 
         return sb.toString();
     }
